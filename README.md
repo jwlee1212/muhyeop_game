@@ -1,4 +1,4 @@
-# 무협 도트 오픈월드 — 1단계 프로토타입
+# 무협 도트 오픈월드 — 프로토타입 (M2 돌다리 마을)
 
 Godot 4.7 / GDScript. `project.godot`을 Godot에서 열고 F5로 실행.
 
@@ -11,7 +11,11 @@ Godot 4.7 / GDScript. `project.godot`을 Godot에서 열고 F5로 실행.
 | 운기조식 (가만히 유지: 내공·기혈 회복) | R | Y |
 | 도움말 표시 | F1 | |
 
-## 1단계에 들어간 것
+## 지금 들어간 것
+- 돌다리 마을: 객잔 뒷방(시작) · 객잔 · 마을 바깥 · 무관 · 다리 밑 뒷골목, 문과 계단으로 오감
+- 적은 타일 격자 A*로 장애물을 돌아서 추격 (뒷골목에 시험용 적 3명)
+
+### M1
 - 480x270, 정수 배율, Nearest 필터, 픽셀 스냅
 - 8방향 이동 · 방향 공격 · 3타 콤보 (3타째는 범위·넉백 큼) · 공격 후 경공 캔슬
 - 경공 무적 시간 + 잔상, 피격 시 무적 깜빡임·넉백, 사망 후 재시작
@@ -25,12 +29,13 @@ Godot 4.7 / GDScript. `project.godot`을 Godot에서 열고 F5로 실행.
 scripts/
   input_setup.gd   입력 액션 등록 (autoload "Inputs")
   fx.gd            히트스톱/흔들림/데미지 숫자 (autoload "Fx")
-  main.gd          테스트 맵 조립
+  main.gd          게임 루트, 지역 전환
   player.gd        주인공 상태머신
   enemy.gd         산적 AI
   dummy_body.gd    더미 도트 캐릭터 (32x32, 발끝 원점)
   shake_camera.gd  카메라
-  ground.gd        임시 바닥 (2단계에서 TileMapLayer로 교체)
+  world/           타일 대응표, 지도 격자, 지역 빌더, NPC
+  regions/         지역 정의 (shed inn village dojo alley)
   obstacle.gd      나무/바위
   hud.gd           기혈/내공 바
 ```

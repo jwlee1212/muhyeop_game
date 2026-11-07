@@ -44,6 +44,7 @@ var inv_time := 0.0
 var knock := Vector2.ZERO
 var dash_dir := Vector2.ZERO
 var spawn_point := Vector2.ZERO
+var frozen := false   # 지역 전환·연출 중 조작 정지
 
 var body: Body
 var camera: ShakeCamera
@@ -71,7 +72,21 @@ func _ready() -> void:
 	add_child(camera)
 
 
+## 지역에 들어올 때 위치를 옮기고, 그 자리를 재시작 지점으로 삼는다.
+func place_at(pos: Vector2) -> void:
+	global_position = pos
+	spawn_point = pos
+	velocity = Vector2.ZERO
+	knock = Vector2.ZERO
+	if state != State.DEAD:
+		_set_state(State.MOVE)
+
+
 func _physics_process(delta: float) -> void:
+	if frozen:
+		velocity = Vector2.ZERO
+		_update_body()
+		return
 	state_time += delta
 	inv_time = maxf(0.0, inv_time - delta)
 	combo_window = maxf(0.0, combo_window - delta)

@@ -18,8 +18,8 @@ Godot 4.7 / GDScript. 실행 파일: `~/Applications/Godot.app/Contents/MacOS/Go
 | 단계 | 목표 | 상태 |
 |---|---|---|
 | 1 | 움직임과 손맛: 8방향 이동·공격·피격(더미 도트) + 카메라 | 완료 (+ pixelfx 베기 이펙트) |
-| 2 | 돌다리 마을: 타일맵 + 실내 + 지역 전환 + 길찾기 적 | 다음 |
-| 3 | 기수식과 기세: Q 커맨드·일섬·기세·황가 일당 3인 전투 | |
+| 2 | 돌다리 마을: 타일맵 + 실내 + 지역 전환 + 길찾기 적 | 완료 |
+| 3 | 기수식과 기세: Q 커맨드·일섬·기세·황가 일당 3인 전투 | 다음 |
 | 4 | 한 시진: 대화·퀘스트·시진 시계·자동 세이브·Q0~Q5 | |
 | 5 | SpriteCook 에셋(8방향 캐릭터, 타일셋) + ElevenLabs 사운드 | |
 | 6 | 1차 버전: Q5 이후 지역 2곳·보스 2·배포 빌드 | |
@@ -28,16 +28,23 @@ Godot 4.7 / GDScript. 실행 파일: `~/Applications/Godot.app/Contents/MacOS/Go
 
 ## 구조
 ```
-scenes/main.tscn        Main 노드 하나 (main.gd가 월드를 코드로 조립)
+scenes/main.tscn        Main 노드 하나 (main.gd가 게임을 코드로 조립)
 scripts/
   input_setup.gd        입력 액션 등록 (autoload "Inputs")
   fx.gd                 hitstop / shake / damage_number (autoload "Fx")
-  main.gd               테스트 맵 조립, 적 재등장
-  player.gd             주인공 상태머신 (MOVE ATTACK DASH HURT MEDITATE DEAD)
-  enemy.gd              산적 AI (IDLE CHASE WINDUP ATTACK RECOVER HURT DEAD)
+  main.gd               게임 루트: REGIONS 목록, change_region(id, entry), 페이드, HUD
+  player.gd             주인공 상태머신 (MOVE ATTACK DASH HURT MEDITATE DEAD), frozen, place_at()
+  enemy.gd              적 AI (IDLE CHASE WINDUP ATTACK RECOVER HURT DEAD), region.find_path로 추격
   dummy_body.gd         더미 도트 몸체 (5단계에서 AnimatedSprite2D로 교체)
   pixel_fx.gd           pixelfx 스프라이트 시트 재생
-  shake_camera.gd / ground.gd / obstacle.gd / hud.gd
+  shake_camera.gd / obstacle.gd(나무·바위) / hud.gd(바·지역 이름)
+  world/tiles.gd        지도 글자 ↔ 타일 대응표(LEGEND), TileSet 생성
+  world/region_grid.gd  글자 격자 + 그리기 명령 (rect, building, set_c)
+  world/region.gd       지역 빌더: 타일맵·출구·진입 지점·NPC·적·AStarGrid2D·카메라 경계
+  world/npc.gd          NPC 자리 표시 (옥분 okbun, 마 사범 ma, 엽 노인 yeop)
+  regions/*.gd          지역 정의: shed(시작) inn village dojo alley
+  dev/gen_placeholder_tiles.gd  임시 타일셋 PNG 생성기
+assets/tiles/           placeholder_tiles.png (16x16, 8열 아틀라스)
 assets/fx/              pixelfx에서 뽑은 시트 (PNG + JSON)
 tools/pixelfx/          patch-gg/pixelfx git 서브모듈 (tools/.gdignore로 Godot 임포트 제외)
                         새로 받을 때: git clone --recurse-submodules / git submodule update --init
@@ -54,6 +61,14 @@ tools/pixelfx/          patch-gg/pixelfx git 서브모듈 (tools/.gdignore로 Go
 - 캐릭터·오브젝트는 y_sort가 켜진 `world` 노드 아래에 둔다. `world`는 그룹 `fx_layer`.
 - 몸체 교체 인터페이스: `facing`, `moving`, `attack_t`(0..1, -1=공격 아님), `flash`, `windup`, `draw_trail`. 이것만 맞추면 player/enemy는 그대로 쓴다.
 - 주석과 UI 문자열은 한국어.
+
+## 지역(맵) 만들기
+- 지역 하나 = `scripts/regions/<id>.gd` + `main.gd`의 `REGIONS`에 등록.
+- 상수: `NAME`(화면 표시), `FLOOR`(소품·표시 글자 밑 기본 바닥), `EXITS`(`{"1": {"to", "entry", "floor"}}`).
+- 지도: 작은 실내는 `const MAP := [글자 줄...]`, 큰 바깥은 `static func make_grid() -> Grid`에서 `rect`/`building`/`set_c`로 그린다.
+- 글자 표는 `scripts/world/tiles.gd` 맨 위 주석과 `LEGEND`. 표시 글자: `1~9` 출구, `a c d e f g` 진입 지점, `O M Y` NPC, `E` 적, `T` 나무.
+- 진입 지점은 출구 칸과 겹치지 않게 한 칸 떨어뜨린다 (겹치면 들어오자마자 다시 나간다).
+- 타일 그림을 바꾸려면 `dev/gen_placeholder_tiles.gd`를 고치고 `$G --headless --path . --script res://scripts/dev/gen_placeholder_tiles.gd` 후 `--import`. M5에서는 같은 아틀라스 좌표로 SpriteCook 타일셋을 그려 PNG만 교체한다.
 
 ## 에셋 규칙
 - 파일명: `대상_동작_방향_번호` (예: `hero_walk_s_01.png`) → 애니메이션 이름 `walk_s`

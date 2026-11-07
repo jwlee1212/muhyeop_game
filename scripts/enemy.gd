@@ -27,6 +27,13 @@ var attack_cd := 0.0
 var attack_dir := Vector2.DOWN
 var attack_done := false
 
+const DIRECT_RANGE := 24.0      # 이보다 가까우면 길찾기 없이 곧장
+const REPATH_INTERVAL := 0.3
+var region = null              # 길찾기를 제공하는 지역 (find_path)
+var _path := PackedVector2Array()
+var _path_i := 0
+var _repath_t := 0.0
+
 var body: Body
 
 
@@ -50,6 +57,26 @@ func _ready() -> void:
 		"hilt": Color("3a2a1a"), "shoe": Color("1e1814"),
 	}
 	add_child(body)
+
+
+## 지역 격자 길찾기로 다음에 갈 방향. 가까우면 곧장 다가간다.
+func _chase_dir(target: Vector2, dist: float, delta: float) -> Vector2:
+	var goal := target
+	if region and dist > DIRECT_RANGE:
+		_repath_t -= delta
+		if _repath_t <= 0.0:
+			_repath_t = REPATH_INTERVAL
+			_path = region.find_path(global_position, target)
+			_path_i = 1
+		while _path_i < _path.size() and global_position.distance_to(_path[_path_i]) < 3.0:
+			_path_i += 1
+		if _path_i < _path.size():
+			goal = _path[_path_i]
+	else:
+		_path = PackedVector2Array()
+		_repath_t = 0.0
+	var to_goal := goal - global_position
+	return to_goal.normalized() if to_goal.length() > 0.5 else Vector2.ZERO
 
 
 func can_be_hit() -> bool:
@@ -90,9 +117,9 @@ func _physics_process(delta: float) -> void:
 				facing = Player.dir_index(attack_dir)
 				_set_state(State.WINDUP)
 			else:
-				var dir := to_p.normalized()
+				var dir := _chase_dir(p.global_position, dist, delta)
 				velocity = dir * move_speed if dist > attack_range - 2.0 else Vector2.ZERO
-				facing = Player.dir_index(dir)
+				facing = Player.dir_index(dir if dir != Vector2.ZERO else to_p)
 		State.WINDUP:
 			velocity = Vector2.ZERO
 			if state_time >= 0.45:

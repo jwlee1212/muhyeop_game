@@ -1,11 +1,13 @@
 extends CanvasLayer
-## 기혈(체력) / 내공 바 + F1 조작 안내.
+## 기혈(체력) / 내공 바 + 지역 이름 + F1 조작 안내.
 
 const Player := preload("res://scripts/player.gd")
 
 var player: Player
 var _canvas := Control.new()
 var _help := Label.new()
+var _region_label := Label.new()
+var _region_tween: Tween
 
 
 func _ready() -> void:
@@ -22,8 +24,30 @@ func _ready() -> void:
 	_help.position = Vector2(6, 256)
 	add_child(_help)
 
+	_region_label.add_theme_font_size_override("font_size", 16)
+	_region_label.add_theme_color_override("font_color", Color("f0e6cc"))
+	_region_label.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.04))
+	_region_label.add_theme_constant_override("outline_size", 4)
+	_region_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_region_label.position = Vector2(0, 28)
+	_region_label.size = Vector2(480, 20)
+	_region_label.modulate.a = 0.0
+	add_child(_region_label)
+
 	if player:
 		player.stats_changed.connect(_canvas.queue_redraw)
+
+
+## 지역에 들어올 때 지역 이름을 잠깐 띄운다.
+func show_region_name(region_name: String) -> void:
+	_region_label.text = region_name
+	if _region_tween:
+		_region_tween.kill()
+	_region_label.modulate.a = 0.0
+	_region_tween = create_tween()
+	_region_tween.tween_property(_region_label, "modulate:a", 1.0, 0.3)
+	_region_tween.tween_interval(1.4)
+	_region_tween.tween_property(_region_label, "modulate:a", 0.0, 0.6)
 
 
 func _unhandled_input(event: InputEvent) -> void:

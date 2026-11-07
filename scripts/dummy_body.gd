@@ -26,7 +26,10 @@ var swing_sign := 1.0
 var flash := 0.0
 var windup := false
 var weapon_len := 11
-var draw_trail := true        # false면 코드로 그린 베기 궤적을 생략 (pixelfx 이펙트 사용 시)
+var draw_trail := true
+var stance := false           # 기수식 자세: 발밑에 기운 고리, 몸을 1px 낮춤
+var stunned := false          # 기세 붕괴: 머리 위에 도는 별
+var poise_ratio := -1.0       # 0..1이면 머리 위에 기세 바 표시, -1이면 숨김        # false면 코드로 그린 베기 궤적을 생략 (pixelfx 이펙트 사용 시)
 
 
 func _process(delta: float) -> void:
@@ -55,11 +58,16 @@ func _draw() -> void:
 	var d: Vector2 = DIRS8[facing]
 	var step := int(anim_time * 8.0) % 2 if moving else 0
 	var bob := -1 if (moving and step == 1) else 0
+	if stance:
+		bob = 1
 	var north := facing in [3, 4, 5]
 
 	# 그림자
 	draw_rect(Rect2(-6, -2, 12, 3), SHADOW)
 	draw_rect(Rect2(-4, -3, 8, 1), SHADOW)
+	if stance:
+		var ring_a := 0.35 + 0.25 * sin(anim_time * 10.0)
+		draw_arc(Vector2(0, -1), 10, 0, TAU, 24, Color(0.6, 0.85, 1.0, ring_a), 1.0)
 
 	if north:
 		_draw_weapon(d, bob)
@@ -103,6 +111,16 @@ func _draw() -> void:
 
 	if attack_t >= 0.0 and draw_trail:
 		_draw_slash_trail(d)
+
+	if stunned:
+		for i in 2:
+			var a := anim_time * 6.0 + PI * i
+			var sp := Vector2(cos(a) * 6.0, -31 + sin(a) * 2.0).round()
+			draw_rect(Rect2(sp, Vector2(1, 1)), Color("ffe26b"))
+			draw_rect(Rect2(sp + Vector2(-1, 0), Vector2(3, 1)), Color(1, 0.9, 0.4, 0.5))
+	if poise_ratio >= 0.0:
+		draw_rect(Rect2(-8, -37, 16, 3), Color(0.08, 0.06, 0.04, 0.85))
+		draw_rect(Rect2(-7, -36, roundf(14.0 * clampf(poise_ratio, 0.0, 1.0)), 1), Color("f0c040"))
 
 	if windup:
 		var c := Color(1, 0.25, 0.2)

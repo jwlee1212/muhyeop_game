@@ -10,6 +10,7 @@ func _enter_tree() -> void:
 	_add("attack", [KEY_J], [MOUSE_BUTTON_LEFT], [JOY_BUTTON_X])
 	_add("dash", [KEY_K, KEY_SPACE], [MOUSE_BUTTON_RIGHT], [JOY_BUTTON_A])
 	_add("meditate", [KEY_R], [], [JOY_BUTTON_Y])
+	_add("stance", [KEY_Q], [], [JOY_BUTTON_LEFT_SHOULDER])
 	_add("debug_toggle", [KEY_F1])
 
 

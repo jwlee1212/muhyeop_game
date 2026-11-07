@@ -6,6 +6,7 @@ signal stats_changed
 const Body := preload("res://scripts/dummy_body.gd")
 const ShakeCamera := preload("res://scripts/shake_camera.gd")
 const PixelFx := preload("res://scripts/pixel_fx.gd")
+const Techniques := preload("res://scripts/combat/techniques.gd")
 const DIRS8 := Body.DIRS8
 
 ## pixelfx 시트 안에서 베기 궤적의 중심 픽셀 (소스: cx, cy + pivot)
@@ -26,7 +27,16 @@ const COMBO := [
 	{"dmg": 22, "range": 28.0, "arc": 360.0, "active": 0.10, "duration": 0.40, "lunge": 120.0, "knock": 200.0},
 ]
 
-enum State { MOVE, ATTACK, DASH, HURT, MEDITATE, DEAD }
+## 기본 3타의 기세 피해 (COMBO와 같은 순서)
+const COMBO_POISE := [8.0, 8.0, 16.0]
+## 일섬 이펙트(melee/thrust)에서 손 위치 픽셀: pivot (34,62) + (9,-20)
+const THRUST_ANCHOR := Vector2(43, 42)
+
+signal technique_used(tech_name: String)
+signal technique_failed(reason: String)
+signal technique_learned(id: String)
+
+enum State { MOVE, ATTACK, DASH, HURT, MEDITATE, DEAD, STANCE, TECHNIQUE }
 
 var max_hp := 100.0
 var hp := 100.0
@@ -43,6 +53,18 @@ var queued_attack := false
 var inv_time := 0.0
 var knock := Vector2.ZERO
 var dash_dir := Vector2.ZERO
+var weapon_id := "wooden_sword"
+
+# 기수식
+var tokens: Array = []        # 절대 방향 토큰 "U" "D" "L" "R"
+var known_techniques: Array = ["ilseom"]   # 익힌 초식. M4에서 빈 배열로 시작해 Q2에서 일섬을 익힌다
+var _last_tok := ""
+var _tok_timer := 0.0
+# 초식 실행
+var tech_id := ""
+var tech_dir := Vector2.ZERO
+var tech_from := Vector2.ZERO
+var tech_hit := {}
 var spawn_point := Vector2.ZERO
 var frozen := false   # 지역 전환·연출 중 조작 정지
 
@@ -101,6 +123,8 @@ func _physics_process(delta: float) -> void:
 				_start_attack(input)
 			elif Input.is_action_just_pressed("dash"):
 				_try_dash(input)
+			elif Input.is_action_pressed("stance"):
+				_enter_stance()
 			elif Input.is_action_pressed("meditate") and input == Vector2.ZERO:
 				_set_state(State.MEDITATE)
 		State.ATTACK:
@@ -122,6 +146,10 @@ func _physics_process(delta: float) -> void:
 				_heal(4.0 * delta)
 			if not Input.is_action_pressed("meditate") or input != Vector2.ZERO:
 				_set_state(State.MOVE)
+		State.STANCE:
+			_process_stance(input, delta)
+		State.TECHNIQUE:
+			_process_technique()
 		State.DEAD:
 			velocity = Vector2.ZERO
 			if state_time > 1.5:
@@ -194,13 +222,13 @@ func _do_hit(data: Dictionary) -> void:
 		if not e.can_be_hit():
 			continue
 		var to: Vector2 = (e.global_position + HIT_CENTER) - origin
-		var reach: float = data.range + e.radius
+		var reach: float = data.range + e.radius + _weapon().reach
 		if to.length() > reach:
 			continue
 		if to.length() > 8.0 and absf(aim.angle_to(to)) > half_arc:
 			continue
 		var hit_dir: Vector2 = to.normalized() if to.length() > 0.1 else aim
-		e.take_hit(data.dmg, hit_dir, data.knock)
+		e.take_hit(data.dmg * _weapon().dmg, hit_dir, data.knock, COMBO_POISE[combo])
 		PixelFx.spawn(get_parent(), "impacts/hit-spark", e.global_position, 0.0, Vector2(-1, -1), hit_dir.x < 0.0)
 		hit_any = true
 	if hit_any:
@@ -236,6 +264,127 @@ func _spawn_afterimages() -> void:
 		var tw := ghost.create_tween()
 		tw.tween_property(ghost, "modulate:a", 0.0, 0.25)
 		tw.tween_callback(ghost.queue_free)
+
+
+func _weapon() -> Dictionary:
+	return Techniques.WEAPONS.get(weapon_id, Techniques.WEAPONS.fist)
+
+
+# ───────────── 기수식 ─────────────
+
+func _enter_stance() -> void:
+	tokens.clear()
+	_last_tok = ""
+	_tok_timer = 0.0
+	_set_state(State.STANCE)
+
+
+## 화면 기준 방향 토큰. 상하좌우 한 방향만 눌렸을 때만 토큰이 되고, 대각선은 "".
+static func dir_token(v: Vector2) -> String:
+	var ax := absf(v.x)
+	var ay := absf(v.y)
+	if ax > 0.5 and ay < 0.5:
+		return "R" if v.x > 0.0 else "L"
+	if ay > 0.5 and ax < 0.5:
+		return "D" if v.y > 0.0 else "U"
+	return ""
+
+
+func learn_technique(id: String) -> void:
+	if id in known_techniques or not Techniques.TECHNIQUES.has(id):
+		return
+	known_techniques.append(id)
+	technique_learned.emit(id)
+
+
+func _process_stance(input: Vector2, delta: float) -> void:
+	velocity = Vector2.ZERO
+	_tok_timer += delta
+	if _tok_timer > Techniques.TOKEN_TIMEOUT and not tokens.is_empty():
+		tokens.clear()
+	# 손을 떼면(중립) 같은 방향을 다시 입력할 수 있다. 대각선은 토큰도, 초기화도 아니다.
+	if input.length() < 0.5:
+		_last_tok = ""
+	else:
+		var tok := dir_token(input)
+		if tok != "" and tok != _last_tok:
+			tokens.append(tok)
+			if tokens.size() > Techniques.MAX_TOKENS:
+				tokens.pop_front()
+			_tok_timer = 0.0
+			_last_tok = tok
+
+	if Input.is_action_just_pressed("attack"):
+		_release_technique()
+	elif Input.is_action_just_pressed("dash"):
+		_try_dash(input)
+	elif not Input.is_action_pressed("stance"):
+		_set_state(State.MOVE)
+
+
+func _release_technique() -> void:
+	var id := Techniques.match_command(tokens, known_techniques)
+	tokens.clear()
+	if id == "":
+		body.flash = 0.04
+		technique_failed.emit("형이 흐트러졌다")
+		return
+	var t: Dictionary = Techniques.TECHNIQUES[id]
+	if qi < t.qi:
+		body.flash = 0.04
+		technique_failed.emit("내공 부족")
+		return
+	_add_qi(-t.qi)
+	tech_id = id
+	tech_dir = DIRS8[facing]
+	tech_from = global_position
+	tech_hit.clear()
+	_set_state(State.TECHNIQUE)
+	technique_used.emit(t.name)
+	Fx.popup_text(global_position, t.name, Color("d8f4ff"))
+
+
+## 일섬: 자세를 낮췄다가 바라보는 방향으로 돌진하며 경로의 적을 한 번씩 벤다.
+func _process_technique() -> void:
+	var t: Dictionary = Techniques.TECHNIQUES[tech_id]
+	var w: float = t.windup
+	var d: float = t.dash_time
+	if state_time < w:
+		velocity = Vector2.ZERO
+		return
+	if state_time < w + d:
+		if tech_hit.is_empty() and state_time - get_physics_process_delta_time() < w:
+			PixelFx.spawn(get_parent(), t.fx, global_position + HIT_CENTER, tech_dir.angle(), THRUST_ANCHOR, false, false, 1.3)
+			_spawn_afterimages()
+		inv_time = maxf(inv_time, 0.05)
+		velocity = tech_dir * (t.dash_dist / d)
+		_tech_hit_along_path(t)
+		return
+	velocity = Vector2.ZERO
+	_tech_hit_along_path(t)
+	if state_time >= w + d + t.recovery:
+		_set_state(State.MOVE)
+
+
+func _tech_hit_along_path(t: Dictionary) -> void:
+	var a := tech_from + HIT_CENTER
+	var b := global_position + HIT_CENTER + tech_dir * 10.0
+	var hit_any := false
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if tech_hit.has(e) or not e.can_be_hit():
+			continue
+		var c: Vector2 = e.global_position + HIT_CENTER
+		var closest := Geometry2D.get_closest_point_to_segment(c, a, b)
+		if c.distance_to(closest) > t.width + e.radius:
+			continue
+		tech_hit[e] = true
+		e.take_hit(t.dmg * _weapon().dmg, tech_dir, t.knock, t.poise)
+		PixelFx.spawn(get_parent(), "impacts/hit-spark", e.global_position, 0.0, Vector2(-1, -1), tech_dir.x < 0.0)
+		hit_any = true
+	if hit_any:
+		_add_qi(QI_PER_HIT)
+		Fx.hitstop(0.09)
+		Fx.shake(4.0)
 
 
 func take_damage(amount: float, from_dir: Vector2) -> void:
@@ -279,6 +428,7 @@ func _heal(v: float) -> void:
 func _update_body() -> void:
 	body.facing = facing
 	body.moving = state == State.MOVE and velocity.length() > 5.0
+	body.stance = state == State.STANCE or (state == State.TECHNIQUE and state_time < 0.1)
 	if state == State.ATTACK:
 		var data: Dictionary = COMBO[combo]
 		body.attack_t = clampf(state_time / (data.active + 0.08), 0.0, 1.0)
@@ -292,6 +442,9 @@ func _update_body() -> void:
 	var blink := inv_time > 0.0 and state != State.DASH and int(inv_time * 20.0) % 2 == 0
 	if state == State.DEAD:
 		body.modulate = Color(1, 1, 1, maxf(0.0, 1.0 - state_time))
+	elif state == State.STANCE:
+		var sp := 0.5 + 0.5 * sin(state_time * 10.0)
+		body.modulate = Color(0.85 + 0.15 * sp, 0.95, 1.0, 1.0)
 	elif state == State.MEDITATE:
 		var p := 0.5 + 0.5 * sin(state_time * 6.0)
 		body.modulate = Color(0.8 + 0.2 * p, 0.9 + 0.1 * p, 1.0, 1.0)

@@ -11,7 +11,8 @@ extends RefCounted
 ##   1~9   출구. 지역 EXITS에 {to, entry, floor} 정의
 ##   a c d e f g  진입 지점 (다른 지역에서 들어올 때 서는 곳)
 ##   O M Y  NPC (옥분, 마 사범, 엽 노인)
-##   E     적 (황가 일당 자리 표시)
+##   E     적: 황가 패거리 (thug)
+##   H     적: 황가 (hwang, 우두머리)
 ##   T     나무 (y정렬 장애물 노드)
 
 const ATLAS_PATH := "res://assets/tiles/placeholder_tiles.png"
@@ -48,6 +49,7 @@ const LEGEND := {
 const GRASS_ALT := Vector2i(1, 0)
 const ENTRY_CHARS := ["a", "c", "d", "e", "f", "g"]
 const NPC_CHARS := {"O": "okbun", "M": "ma", "Y": "yeop"}
+const ENEMY_CHARS := {"E": "thug", "H": "hwang"}
 
 static var _tileset: TileSet
 

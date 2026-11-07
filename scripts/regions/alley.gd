@@ -1,6 +1,6 @@
 extends RefCounted
 ## 다리 밑 뒷골목. 원작 1화에서 서진이 죽는 곳. Q3 지형 파악, Q4 황가 일당 전투의 무대.
-## 지금은 길찾기 시험용으로 적(E) 3명을 둔다.
+## M3: 황가(H)와 패거리(E) 둘. M4에서 Q4 이벤트로 등장하도록 바뀐다.
 
 const Grid := preload("res://scripts/world/region_grid.gd")
 
@@ -28,6 +28,7 @@ static func make_grid() -> Grid:
 		g.set_c("x", p.x, p.y)
 	for p in [Vector2i(12, 8), Vector2i(27, 6), Vector2i(6, 13), Vector2i(23, 5)]:
 		g.set_c("b", p.x, p.y)
-	for p in [Vector2i(24, 10), Vector2i(26, 12), Vector2i(22, 13)]:
-		g.set_c("E", p.x, p.y)
+	g.set_c("H", 25, 11)
+	g.set_c("E", 23, 9)
+	g.set_c("E", 23, 14)
 	return g

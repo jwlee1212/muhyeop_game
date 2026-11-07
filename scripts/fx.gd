@@ -38,3 +38,25 @@ func damage_number(world_pos: Vector2, value: int, color: Color = Color(1, 0.95,
 	tw.tween_property(label, "position:y", label.position.y - 12, 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.parallel().tween_property(label, "modulate:a", 0.0, 0.5).set_delay(0.2)
 	tw.tween_callback(label.queue_free)
+
+
+## 글자 팝업 (초식 이름, "기세 붕괴" 등)
+func popup_text(world_pos: Vector2, text: String, color: Color = Color(1, 1, 1)) -> void:
+	var world := get_tree().get_first_node_in_group("fx_layer")
+	if world == null:
+		return
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.1))
+	label.add_theme_constant_override("outline_size", 3)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.size = Vector2(60, 10)
+	label.position = (world_pos + Vector2(-30, -48)).round()
+	label.z_index = 101
+	world.add_child(label)
+	var tw := label.create_tween()
+	tw.tween_property(label, "position:y", label.position.y - 8, 0.7).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(label, "modulate:a", 0.0, 0.4).set_delay(0.5)
+	tw.tween_callback(label.queue_free)

@@ -23,6 +23,7 @@ var region_name := ""
 var grid: Grid
 var floor_layer: TileMapLayer
 var decor_layer: TileMapLayer
+var ground_fx: Node2D             # 바닥 위·캐릭터 아래 (적 공격 예고)
 var world: Node2D                 # y정렬. 캐릭터·나무·이펙트가 여기 들어간다
 var astar := AStarGrid2D.new()
 var entries := {}                 # 진입 글자 → 발 위치
@@ -47,6 +48,8 @@ func build(id: String, def: GDScript) -> void:
 	decor_layer = TileMapLayer.new()
 	decor_layer.tile_set = ts
 	add_child(decor_layer)
+	ground_fx = Node2D.new()
+	add_child(ground_fx)
 	world = Node2D.new()
 	world.y_sort_enabled = true
 	world.add_to_group("fx_layer")
@@ -98,8 +101,9 @@ func _build_cell(x: int, y: int, c: String, base_floor: String, exits: Dictionar
 		npc.position = feet
 		world.add_child(npc)
 		blocked = true
-	elif c == "E":
+	elif Tiles.ENEMY_CHARS.has(c):
 		var e := Enemy.new()
+		e.kind = Tiles.ENEMY_CHARS[c]
 		e.region = self
 		e.position = feet
 		world.add_child(e)

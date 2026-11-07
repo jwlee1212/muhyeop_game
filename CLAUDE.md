@@ -20,7 +20,7 @@ Godot 4.7 / GDScript. 실행 파일: `~/Applications/Godot.app/Contents/MacOS/Go
 | 5 | SpriteCook 에셋(8방향 캐릭터, 타일셋) + ElevenLabs 사운드 | |
 | 6 | 지역 3개로 확장, 밸런스 | |
 
-단계를 끝내면 이 표의 상태를 갱신한다.
+단계별 세부 작업과 완료 조건은 [docs/MILESTONES.md](docs/MILESTONES.md) (M1~M6 = 위 1~6단계). 단계를 끝내면 이 표와 그 문서의 체크박스·상태를 함께 갱신한다.
 
 ## 구조
 ```
@@ -72,3 +72,4 @@ $G --headless --path . --quit-after 300  # 실행 오류 확인
 - **자동 입력 테스트**: `_autotest/autoplay.gd`(Input.action_press로 조작)를 만들고 프로젝트 루트에 `override.cfg`로 autoload 등록 → 실행 → **끝나면 둘 다 삭제**. 프로젝트에 남기지 않는다.
 - **화면 확인**: `$G --path . --write-movie <scratch>/f.png --fixed-fps 30 --quit-after N`으로 프레임 녹화. 창이 가려지면 모든 프레임이 같게 찍힐 수 있으니, 그럴 때는 프레임 해시를 비교하고 헤드리스 로그로 대신 확인한다.
 - 녹화 프레임·임시 파일은 프로젝트 밖(스크래치 폴더)에 둔다.
+

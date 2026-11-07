@@ -1,0 +1,74 @@
+# 무협 도트 오픈월드 (가제)
+
+탑다운 도트 무협 오픈월드. 강호를 돌아다니며 문파를 만나고, 무공을 익히고, 멸문의 진실을 추적한다.
+Godot 4.7 / GDScript. 실행 파일: `~/Applications/Godot.app/Contents/MacOS/Godot`
+
+## 기획 핵심
+- 480x270 (정수 배율), 캐릭터 32x32, 타일 16x16, 팔레트 16~32색, 8방향 이동·공격
+- 전투: 방향 공격, 초식 3~4종, 회피, **기세**(적 게이지를 깎으면 경직)
+- 내공: 적중 시 충전 → 경공·필살기에 소모 → 운기조식으로 회복
+- 성장: 비급 → 초식 해금, 문파 무공, 수련 / 세력: 정파·사파·마교 호감도
+- 1차 월드: ① 시작 마을 + 폐허 본문파 ② 죽림과 강가(산적, 중간 보스) ③ 정파 문파 거점(보스)
+
+## 개발 단계
+| 단계 | 목표 | 상태 |
+|---|---|---|
+| 1 | 8방향 이동·공격·피격(더미 도트) + 카메라 | 완료 (+ pixelfx 베기 이펙트) |
+| 2 | 타일맵 1개 지역 + 지역 전환 + 적 AI 1종 | 다음 |
+| 3 | 전투 시스템(콤보·내공·기세) + 보스 1종 | |
+| 4 | NPC 대화·퀘스트 1개·인벤토리·저장 | |
+| 5 | SpriteCook 에셋(8방향 캐릭터, 타일셋) + ElevenLabs 사운드 | |
+| 6 | 지역 3개로 확장, 밸런스 | |
+
+단계를 끝내면 이 표의 상태를 갱신한다.
+
+## 구조
+```
+scenes/main.tscn        Main 노드 하나 (main.gd가 월드를 코드로 조립)
+scripts/
+  input_setup.gd        입력 액션 등록 (autoload "Inputs")
+  fx.gd                 hitstop / shake / damage_number (autoload "Fx")
+  main.gd               테스트 맵 조립, 적 재등장
+  player.gd             주인공 상태머신 (MOVE ATTACK DASH HURT MEDITATE DEAD)
+  enemy.gd              산적 AI (IDLE CHASE WINDUP ATTACK RECOVER HURT DEAD)
+  dummy_body.gd         더미 도트 몸체 (5단계에서 AnimatedSprite2D로 교체)
+  pixel_fx.gd           pixelfx 스프라이트 시트 재생
+  shake_camera.gd / ground.gd / obstacle.gd / hud.gd
+assets/fx/              pixelfx에서 뽑은 시트 (PNG + JSON)
+tools/pixelfx/          patch-gg/pixelfx git 서브모듈 (tools/.gdignore로 Godot 임포트 제외)
+                        새로 받을 때: git clone --recurse-submodules / git submodule update --init
+.claude/skills/pixelfx  pixelfx 스킬
+```
+
+## 코드 규칙
+- **`class_name` 쓰지 않는다.** 다른 스크립트는 `const X := preload("res://scripts/x.gd")`로 불러 타입으로도 쓴다.
+- **타입이 있는 수학 함수**를 쓴다: `lerpf maxf clampf roundf absf maxi`. 일반 `lerp/max/round`는 Variant를 돌려줘 `:=` 추론이 실패한다.
+- 입력 액션은 `input_setup.gd`에서 코드로 추가한다 (project.godot에 직렬화하지 않음). 현재: move_*, attack(J), dash(K/Space), meditate(R), debug_toggle(F1).
+- **방향 인덱스**: 0=s 1=se 2=e 3=ne 4=n 5=nw 6=w 7=sw (`dummy_body.gd`의 `DIRS8`, `DIR_NAMES`). 벡터 → 인덱스는 `player.gd`의 `dir_index()`.
+- **원점 = 발끝** (y정렬용). 몸 중심/타격 기준점은 `HIT_CENTER = (0, -10)`.
+- 충돌 레이어: 1 = 월드(벽·장애물), 2 = 플레이어, 4 = 적. 플레이어 mask 1, 적 mask 1|4.
+- 캐릭터·오브젝트는 y_sort가 켜진 `world` 노드 아래에 둔다. `world`는 그룹 `fx_layer`.
+- 몸체 교체 인터페이스: `facing`, `moving`, `attack_t`(0..1, -1=공격 아님), `flash`, `windup`, `draw_trail`. 이것만 맞추면 player/enemy는 그대로 쓴다.
+- 주석과 UI 문자열은 한국어.
+
+## 에셋 규칙
+- 파일명: `대상_동작_방향_번호` (예: `hero_walk_s_01.png`) → 애니메이션 이름 `walk_s`
+- 텍스처 필터 Nearest (프로젝트 기본값), 픽셀 스냅 켜짐
+- 실제 게임·캐릭터를 베끼지 않는다
+
+## pixelfx 이펙트
+- 현재 사용: 1·2타 `melee/sword-slash`(radius 24), 3타 `melee/spin-slash`(radius 30), 적중 `impacts/hit-spark`(height 12). 베기 2종은 청백 팔레트 `["#0c1430","#162c5c","#1f4f94","#2f7fcc","#58b4ec","#9bdcff","#d8f4ff","#ffffff"]`.
+- 다시 뽑기 (tools/pixelfx 에서): `node tools/render.mjs <id> --sheet --no-actor --opts '<JSON>' --out ../../assets/fx` 후 `contact.png`는 지운다.
+- 재생: `PixelFx.spawn(parent, id, pos, rot, anchor, mirror_x, mirror_y, speed)`. `anchor`는 프레임 안에서 `pos`에 올 픽셀(회전 중심). 궤적 중심은 이펙트 소스의 `cx, cy` + 시트 pivot으로 구한다.
+- pixelfx 이펙트는 대부분 옆에서 본 시점이고 크다. 탑다운에 쓸 때는 radius/size 옵션으로 줄이고 회전·반전으로 맞춘다.
+- 시트 JSON은 리소스가 아니므로 내보내기 설정의 non-resource 필터에 `*.json`을 넣어야 한다.
+
+## 검증 방법
+```bash
+G=~/Applications/Godot.app/Contents/MacOS/Godot
+$G --headless --path . --import          # 새 에셋 임포트 + 스크립트 파싱
+$G --headless --path . --quit-after 300  # 실행 오류 확인
+```
+- **자동 입력 테스트**: `_autotest/autoplay.gd`(Input.action_press로 조작)를 만들고 프로젝트 루트에 `override.cfg`로 autoload 등록 → 실행 → **끝나면 둘 다 삭제**. 프로젝트에 남기지 않는다.
+- **화면 확인**: `$G --path . --write-movie <scratch>/f.png --fixed-fps 30 --quit-after N`으로 프레임 녹화. 창이 가려지면 모든 프레임이 같게 찍힐 수 있으니, 그럴 때는 프레임 해시를 비교하고 헤드리스 로그로 대신 확인한다.
+- 녹화 프레임·임시 파일은 프로젝트 밖(스크래치 폴더)에 둔다.

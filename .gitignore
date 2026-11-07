@@ -1,0 +1,11 @@
+# Godot 4
+.godot/
+/android/
+*.translation
+
+# 자동 입력 테스트 임시 파일 (CLAUDE.md 참고)
+/_autotest/
+/override.cfg
+
+# OS
+.DS_Store

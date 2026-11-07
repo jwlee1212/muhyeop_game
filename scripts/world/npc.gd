@@ -28,12 +28,19 @@ const NPCS := {
 var npc_id := "okbun"
 var display_name := ""
 var body: Body
+# 상호작용 (interactable.gd 와 같은 인터페이스)
+var id := ""
+var prompt := "말 걸기"
+var radius := 24.0
+var enabled := true
 
 
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 0
 	add_to_group("npcs")
+	add_to_group("interactables")
+	id = npc_id
 	var shape := CircleShape2D.new()
 	shape.radius = 6
 	var cs := CollisionShape2D.new()
@@ -46,6 +53,18 @@ func _ready() -> void:
 	body.palette = data.palette
 	body.facing = data.facing
 	add_child(body)
+
+
+func can_interact() -> bool:
+	return enabled and visible and is_inside_tree()
+
+
+## 퀘스트 진행에 따라 숨기거나 보이게 (엽 노인은 Q5 전엔 없음)
+func set_present(on: bool) -> void:
+	visible = on
+	enabled = on
+	collision_layer = 1 if on else 0
+	process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
 
 
 func _process(_delta: float) -> void:

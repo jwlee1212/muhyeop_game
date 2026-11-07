@@ -7,10 +7,12 @@ func _enter_tree() -> void:
 	_add("move_down", [KEY_S, KEY_DOWN], [], [JOY_BUTTON_DPAD_DOWN], [[JOY_AXIS_LEFT_Y, 1.0]])
 	_add("move_left", [KEY_A, KEY_LEFT], [], [JOY_BUTTON_DPAD_LEFT], [[JOY_AXIS_LEFT_X, -1.0]])
 	_add("move_right", [KEY_D, KEY_RIGHT], [], [JOY_BUTTON_DPAD_RIGHT], [[JOY_AXIS_LEFT_X, 1.0]])
-	_add("attack", [KEY_J], [MOUSE_BUTTON_LEFT], [JOY_BUTTON_X])
-	_add("dash", [KEY_K, KEY_SPACE], [MOUSE_BUTTON_RIGHT], [JOY_BUTTON_A])
+	_add("attack", [KEY_F], [MOUSE_BUTTON_LEFT], [JOY_BUTTON_X])
+	_add("dash", [KEY_SPACE], [MOUSE_BUTTON_RIGHT], [JOY_BUTTON_A])
 	_add("meditate", [KEY_R], [], [JOY_BUTTON_Y])
-	_add("stance", [KEY_Q], [], [JOY_BUTTON_LEFT_SHOULDER])
+	_add("stance", [KEY_SHIFT], [], [JOY_BUTTON_LEFT_SHOULDER])
+	_add("interact", [KEY_E, KEY_ENTER, KEY_KP_ENTER], [], [JOY_BUTTON_B])
+	_add("menu", [KEY_TAB, KEY_I, KEY_ESCAPE], [], [JOY_BUTTON_START])
 	_add("debug_toggle", [KEY_F1])
 
 

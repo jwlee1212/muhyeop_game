@@ -50,6 +50,8 @@ const GRASS_ALT := Vector2i(1, 0)
 const ENTRY_CHARS := ["a", "c", "d", "e", "f", "g"]
 const NPC_CHARS := {"O": "okbun", "M": "ma", "Y": "yeop"}
 const ENEMY_CHARS := {"E": "thug", "H": "hwang"}
+## 살펴볼 수 있는 소품 (글자 → 상호작용 id)
+const INTERACT_DECOR := {"p": "bowl", "n": "notice_board", "u": "training_post", "w": "well"}
 
 static var _tileset: TileSet
 

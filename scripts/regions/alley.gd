@@ -1,11 +1,15 @@
 extends RefCounted
 ## 다리 밑 뒷골목. 원작 1화에서 서진이 죽는 곳. Q3 지형 파악, Q4 황가 일당 전투의 무대.
-## M3: 황가(H)와 패거리(E) 둘. M4에서 Q4 이벤트로 등장하도록 바뀐다.
+## 황가 일당은 지도에 두지 않고 Q4 이벤트에서 SPAWNS 자리에 나타난다 (story.gd).
 
 const Grid := preload("res://scripts/world/region_grid.gd")
 
 const NAME := "다리 밑 뒷골목"
 const FLOOR := ";"
+## Q4: 계단 쪽에서 내려와 주인공을 골목 안쪽으로 몰아넣는다
+const SPAWNS := {"hwang": Vector2i(5, 9), "thug_a": Vector2i(4, 6), "thug_b": Vector2i(6, 12)}
+## Q3: 이 칸보다 안쪽(오른쪽)까지 들어가면 지형 파악 완료
+const SCOUT_X := 18
 const EXITS := {
 	"1": {"to": "village", "entry": "e", "floor": "^"},
 }
@@ -28,7 +32,4 @@ static func make_grid() -> Grid:
 		g.set_c("x", p.x, p.y)
 	for p in [Vector2i(12, 8), Vector2i(27, 6), Vector2i(6, 13), Vector2i(23, 5)]:
 		g.set_c("b", p.x, p.y)
-	g.set_c("H", 25, 11)
-	g.set_c("E", 23, 9)
-	g.set_c("E", 23, 14)
 	return g

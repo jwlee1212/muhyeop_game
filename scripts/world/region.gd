@@ -14,6 +14,7 @@ const Grid := preload("res://scripts/world/region_grid.gd")
 const Npc := preload("res://scripts/world/npc.gd")
 const Obstacle := preload("res://scripts/obstacle.gd")
 const Enemy := preload("res://scripts/enemy.gd")
+const Interactable := preload("res://scripts/world/interactable.gd")
 
 const TILE := Tiles.TILE
 const VIEW := Vector2i(480, 270)
@@ -27,11 +28,13 @@ var ground_fx: Node2D             # 바닥 위·캐릭터 아래 (적 공격 예
 var world: Node2D                 # y정렬. 캐릭터·나무·이펙트가 여기 들어간다
 var astar := AStarGrid2D.new()
 var entries := {}                 # 진입 글자 → 발 위치
+var consts := {}                  # 지역 정의 스크립트의 상수 (SPAWNS 등)
+var _exit_areas := {}
 
 
 func build(id: String, def: GDScript) -> void:
 	region_id = id
-	var consts := def.get_script_constant_map()
+	consts = def.get_script_constant_map()
 	region_name = consts.get("NAME", id)
 	var base_floor: String = consts.get("FLOOR", ".")
 	var exits: Dictionary = consts.get("EXITS", {})
@@ -61,10 +64,9 @@ func build(id: String, def: GDScript) -> void:
 	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
 	astar.update()
 
-	var exit_areas := {}
 	for y in grid.h:
 		for x in grid.w:
-			_build_cell(x, y, grid.get_c(x, y), base_floor, exits, exit_areas)
+			_build_cell(x, y, grid.get_c(x, y), base_floor, exits, _exit_areas)
 	_build_bounds()
 
 
@@ -79,6 +81,11 @@ func _build_cell(x: int, y: int, c: String, base_floor: String, exits: Dictionar
 		if Tiles.kind(c) == "decor":
 			_set_tile(decor_layer, cell, c)
 			blocked = true
+			if Tiles.INTERACT_DECOR.has(c):
+				var it := Interactable.new()
+				it.id = Tiles.INTERACT_DECOR[c]
+				it.position = center
+				world.add_child(it)
 		else:
 			floor_c = c
 	elif c.is_valid_int():
@@ -102,17 +109,43 @@ func _build_cell(x: int, y: int, c: String, base_floor: String, exits: Dictionar
 		world.add_child(npc)
 		blocked = true
 	elif Tiles.ENEMY_CHARS.has(c):
-		var e := Enemy.new()
-		e.kind = Tiles.ENEMY_CHARS[c]
-		e.region = self
-		e.position = feet
-		world.add_child(e)
+		spawn_enemy(Tiles.ENEMY_CHARS[c], cell)
 	elif c != " ":
 		push_warning("%s: 모르는 지도 글자 '%s' (%d,%d)" % [region_id, c, x, y])
 
 	_set_tile(floor_layer, cell, floor_c)
 	if blocked or Tiles.is_solid(floor_c):
 		astar.set_point_solid(cell, true)
+
+
+## 퀘스트 이벤트용: 칸에 적을 만든다.
+func spawn_enemy(kind: String, cell: Vector2i) -> Enemy:
+	var e := Enemy.new()
+	e.kind = kind
+	e.region = self
+	e.position = Vector2(cell.x * TILE + TILE * 0.5, cell.y * TILE + TILE * 0.5 + 4)
+	world.add_child(e)
+	return e
+
+
+func npc(npc_id: String) -> Node:
+	for n in world.get_children():
+		if n.is_in_group("npcs") and n.npc_id == npc_id:
+			return n
+	return null
+
+
+func interactable(id: String) -> Node:
+	for n in world.get_children():
+		if n.is_in_group("interactables") and n.id == id:
+			return n
+	return null
+
+
+## 싸우는 동안 출구를 막는다.
+func set_exits_enabled(on: bool) -> void:
+	for area in _exit_areas.values():
+		area.set_deferred("monitoring", on)
 
 
 func _set_tile(layer: TileMapLayer, cell: Vector2i, c: String) -> void:

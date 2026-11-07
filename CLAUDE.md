@@ -7,7 +7,7 @@ Godot 4.7 / GDScript. 실행 파일: `~/Applications/Godot.app/Contents/MacOS/Go
 ## 기획 핵심
 - 480x270 (정수 배율), 캐릭터 32x32, 타일 16x16, 팔레트 16~32색, 8방향 이동·공격
 - 전투: 방향 공격, 회피(경공), **기세**(적 게이지를 깎으면 경직)
-- **기수식**: Q를 누르고 있는 동안 자세 → 화면 기준 절대 방향(↑↓←→) + J로 초식 발동 (첫 초식: 일섬 `↓↑+J`). 초식은 배워야 쓰고, 커맨드는 무공 메뉴에서 보고 외운다 (전투 HUD에 커맨드 목록을 띄우지 않는다)
+- **기수식**: Shift를 누르고 있는 동안 자세 → 화면 기준 절대 방향(↑↓←→) + F로 초식 발동 (첫 초식: 일섬 `↓↑+F`). 초식은 배워야 쓰고, 커맨드는 무공 메뉴에서 보고 외운다 (전투 HUD에 커맨드 목록을 띄우지 않는다)
 - 내공: 적중 시 충전 → 경공·초식에 소모 → 운기조식으로 회복
 - 시진 시계: 실시간이 아니라 **퀘스트 진행에 맞춰** 넘어간다
 - 재시도: 황가 일당 전투 직전 자동 세이브 → 죽으면 "뒤로가기"로 전투 직전부터
@@ -19,9 +19,9 @@ Godot 4.7 / GDScript. 실행 파일: `~/Applications/Godot.app/Contents/MacOS/Go
 |---|---|---|
 | 1 | 움직임과 손맛: 8방향 이동·공격·피격(더미 도트) + 카메라 | 완료 (+ pixelfx 베기 이펙트) |
 | 2 | 돌다리 마을: 타일맵 + 실내 + 지역 전환 + 길찾기 적 | 완료 |
-| 3 | 기수식과 기세: Q 커맨드·일섬·기세·황가 일당 3인 전투 | 완료 |
-| 4 | 한 시진: 대화·퀘스트·시진 시계·자동 세이브·Q0~Q5 | 다음 |
-| 5 | SpriteCook 에셋(8방향 캐릭터, 타일셋) + ElevenLabs 사운드 | |
+| 3 | 기수식과 기세: 기수식 커맨드·일섬·기세·황가 일당 3인 전투 | 완료 |
+| 4 | 한 시진: 대화·퀘스트·시진 시계·자동 세이브·Q0~Q5 | 완료 |
+| 5 | SpriteCook 에셋(8방향 캐릭터, 타일셋) + ElevenLabs 사운드 | 다음 |
 | 6 | 1차 버전: Q5 이후 지역 2곳·보스 2·배포 빌드 | |
 
 단계별 세부 작업과 완료 조건은 [docs/MILESTONES.md](docs/MILESTONES.md) (M1~M6 = 위 1~6단계). 단계를 끝내면 이 표와 그 문서의 체크박스·상태를 함께 갱신한다.
@@ -31,8 +31,15 @@ Godot 4.7 / GDScript. 실행 파일: `~/Applications/Godot.app/Contents/MacOS/Go
 scenes/main.tscn        Main 노드 하나 (main.gd가 게임을 코드로 조립)
 scripts/
   input_setup.gd        입력 액션 등록 (autoload "Inputs")
-  fx.gd                 hitstop / shake / damage_number (autoload "Fx")
-  main.gd               게임 루트: REGIONS 목록, change_region(id, entry), 페이드, HUD
+  fx.gd                 hitstop / shake / damage_number / popup_text (autoload "Fx")
+  game_state.gd         진행 상태 (autoload "Game"): quest·objective·flags·kak(시진)·inventory·memory, 저장 파일 읽기/쓰기, Galmuri 폰트
+  main.gd               게임 루트: 타이틀 → new_game()/load_game(), REGIONS, change_region(id, entry, fade, pos), save_game/autosave
+  story/story.gd        초반 퀘스트 Q0~Q5: on_interact(id), apply_presence/on_region_entered(region), 황가 전투·뒤로가기
+  ui/dialogue_box.gd    대화 상자: await play(lines) → 선택지 번호
+  ui/menu.gd            메뉴(Tab): 무공·소지품·기억·저장
+  ui/cutscene.gd        오프닝, 죽음(1화 엔딩 컷+뒤로가기), "이 장면은 원작에 없다"
+  ui/cuts.gd            1화 컷 그림(임시 도형) / ui/title.gd 타이틀
+  world/interactable.gd 살펴보기 대상 (id, prompt). NPC도 같은 인터페이스
   player.gd             주인공 상태머신 (MOVE ATTACK DASH HURT MEDITATE DEAD STANCE TECHNIQUE), frozen, place_at(), 기수식 토큰
   enemy.gd              적 AI. KINDS(thug, hwang)·ATTACKS(slash slam stomp charge) 표, 기세, region.find_path로 추격
   combat/techniques.gd  초식(TECHNIQUES)·무기(WEAPONS) 데이터, match_command()
@@ -47,6 +54,7 @@ scripts/
   regions/*.gd          지역 정의: shed(시작) inn village dojo alley
   dev/gen_placeholder_tiles.gd  임시 타일셋 PNG 생성기
 assets/tiles/           placeholder_tiles.png (16x16, 8열 아틀라스)
+assets/fonts/           Galmuri11(본문 12px)·Galmuri9(작은 글씨 10px), OFL 라이선스
 assets/fx/              pixelfx에서 뽑은 시트 (PNG + JSON)
 tools/pixelfx/          patch-gg/pixelfx git 서브모듈 (tools/.gdignore로 Godot 임포트 제외)
                         새로 받을 때: git clone --recurse-submodules / git submodule update --init
@@ -56,7 +64,7 @@ tools/pixelfx/          patch-gg/pixelfx git 서브모듈 (tools/.gdignore로 Go
 ## 코드 규칙
 - **`class_name` 쓰지 않는다.** 다른 스크립트는 `const X := preload("res://scripts/x.gd")`로 불러 타입으로도 쓴다.
 - **타입이 있는 수학 함수**를 쓴다: `lerpf maxf clampf roundf absf maxi`. 일반 `lerp/max/round`는 Variant를 돌려줘 `:=` 추론이 실패한다.
-- 입력 액션은 `input_setup.gd`에서 코드로 추가한다 (project.godot에 직렬화하지 않음). 현재: move_*, attack(J), dash(K/Space), stance(Q, 패드 LB), meditate(R), debug_toggle(F1).
+- 입력 액션은 `input_setup.gd`에서 코드로 추가한다 (project.godot에 직렬화하지 않음). 현재: move_*, attack(F), dash(Space), stance(Shift, 패드 LB), meditate(R), interact(E/Enter, 패드 B), menu(Tab/I/Esc, 패드 Start), debug_toggle(F1).
 - **방향 인덱스**: 0=s 1=se 2=e 3=ne 4=n 5=nw 6=w 7=sw (`dummy_body.gd`의 `DIRS8`, `DIR_NAMES`). 벡터 → 인덱스는 `player.gd`의 `dir_index()`.
 - **원점 = 발끝** (y정렬용). 몸 중심/타격 기준점은 `HIT_CENTER = (0, -10)`.
 - 충돌 레이어: 1 = 월드(벽·장애물), 2 = 플레이어, 4 = 적. 플레이어 mask 1, 적 mask 1|4.
@@ -66,6 +74,10 @@ tools/pixelfx/          patch-gg/pixelfx git 서브모듈 (tools/.gdignore로 Go
 - 기수식 토큰은 화면 기준 "U" "D" "L" "R" (`player.dir_token()`, 대각선은 무시). 초식이 나가는 방향은 기수식 전에 보던 방향. 새 초식은 `TECHNIQUES`에 추가하고 `player.learn_technique(id)`로 익힌다 (`known_techniques`).
 - 적 종류 추가: `enemy.gd`의 `KINDS`/`ATTACKS`, 지도 글자는 `tiles.gd`의 `ENEMY_CHARS`.
 - 주석과 UI 문자열은 한국어.
+- **글자 크기**: `Game.font_main`은 12px, `Game.font_small`은 10px에서만 쓴다 (도트 폰트라 다른 크기는 뭉개진다. 크게 쓸 땐 24px처럼 정수배).
+- 대화·메뉴·연출은 `get_tree().paused = true`로 게임을 멈추고, UI 노드는 `PROCESS_MODE_ALWAYS`. 끝날 때 두 프레임 쉬고 재개한다 (확인 키가 공격·상호작용으로 새지 않게).
+- 대사 줄 형식: `"서술"` 또는 `{"who", "text", "thought", "sys", "choices"}`. 주인공은 서진의 기억이 없다: 이름을 듣기 전엔 "여인", "노인", "???"로 쓴다.
+- 퀘스트 이벤트는 `story.gd`에, 진행 상태는 `Game`(flags·quest)에 둔다. 저장에 들어가야 하는 상태는 `Game.snapshot()`/`restore()`에도 추가한다.
 
 ## 지역(맵) 만들기
 - 지역 하나 = `scripts/regions/<id>.gd` + `main.gd`의 `REGIONS`에 등록.
@@ -96,6 +108,8 @@ $G --headless --path . --quit-after 300  # 실행 오류 확인
 - **자동 입력 테스트**: `_autotest/autoplay.gd`(Input.action_press로 조작)를 만들고 프로젝트 루트에 `override.cfg`로 autoload 등록 → 실행 → **끝나면 둘 다 삭제**. 프로젝트에 남기지 않는다.
 - **화면 확인**: `$G --path . --write-movie <scratch>/f.png --fixed-fps 30 --quit-after N`으로 프레임 녹화. 창이 가려지면 모든 프레임이 같게 찍힐 수 있으니, 그럴 때는 프레임 해시를 비교하고 헤드리스 로그로 대신 확인한다.
 - 녹화 프레임·임시 파일은 프로젝트 밖(스크래치 폴더)에 둔다.
+- 자동 테스트는 `override.cfg`에 `[application] config/use_custom_user_dir=true`, `config/custom_user_dir_name="muhyeop_autotest"`를 넣어 실제 저장 파일을 건드리지 않는다.
+- 대화·메뉴는 입력 이벤트로 움직이므로 테스트에서는 `Input.parse_input_event(InputEventAction)`으로 누른다 (`action_press`는 이벤트를 만들지 않는다). 헤드리스에서는 화면 프레임이 물리 프레임보다 빨리 도니 시간 기다림은 `physics_frame`으로 센다.
 - 자동 테스트 실행은 출력을 파일로 받고(`> log 2>&1`) `--quit-after N`으로 상한을 둔다. 파이프로 받으면 버퍼에 막히고, 테스트 스크립트가 오류로 멈추면 Godot가 끝나지 않는다.
 - 창 모드 캡처는 `await RenderingServer.frame_post_draw` 후 `get_viewport().get_texture().get_image().save_png()`.
 

@@ -35,6 +35,8 @@ const THRUST_ANCHOR := Vector2(43, 42)
 signal technique_used(tech_name: String)
 signal technique_failed(reason: String)
 signal technique_learned(id: String)
+signal died
+signal interact_requested(id: String)
 
 enum State { MOVE, ATTACK, DASH, HURT, MEDITATE, DEAD, STANCE, TECHNIQUE }
 
@@ -67,6 +69,9 @@ var tech_from := Vector2.ZERO
 var tech_hit := {}
 var spawn_point := Vector2.ZERO
 var frozen := false   # 지역 전환·연출 중 조작 정지
+var auto_respawn := true   # false면 죽은 뒤 story.gd가 처리 (Q4 뒤로가기)
+var focus: Node = null     # 가까운 상호작용 대상
+var _prompt := Label.new()
 
 var body: Body
 var camera: ShakeCamera
@@ -93,6 +98,46 @@ func _ready() -> void:
 	camera.position = Vector2(0, -12)
 	add_child(camera)
 
+	_prompt.top_level = true
+	_prompt.z_index = 90
+	_prompt.add_theme_font_override("font", Game.font_small)
+	_prompt.add_theme_font_size_override("font_size", Game.SMALL_SIZE)
+	_prompt.add_theme_color_override("font_color", Color("f6f2e8"))
+	_prompt.add_theme_color_override("font_outline_color", Color("1a1614"))
+	_prompt.add_theme_constant_override("outline_size", 3)
+	_prompt.visible = false
+	add_child(_prompt)
+
+
+## 가까운 상호작용 대상을 고르고 머리 위에 안내를 띄운다.
+func _update_focus() -> void:
+	focus = null
+	if state == State.MOVE and not frozen:
+		var best := INF
+		for n in get_tree().get_nodes_in_group("interactables"):
+			if not n.can_interact():
+				continue
+			var d := global_position.distance_to(n.global_position)
+			if d < n.radius and d < best:
+				best = d
+				focus = n
+	_prompt.visible = focus != null
+	if focus:
+		_prompt.text = "E " + focus.prompt
+		_prompt.reset_size()
+		_prompt.global_position = (focus.global_position + Vector2(-_prompt.size.x * 0.5, -46)).round()
+
+
+## 불러오기 직후 상태 정리
+func reset_after_load() -> void:
+	_set_state(State.MOVE)
+	velocity = Vector2.ZERO
+	knock = Vector2.ZERO
+	inv_time = 1.0
+	tokens.clear()
+	body.modulate = Color.WHITE
+	stats_changed.emit()
+
 
 ## 지역에 들어올 때 위치를 옮기고, 그 자리를 재시작 지점으로 삼는다.
 func place_at(pos: Vector2) -> void:
@@ -105,6 +150,7 @@ func place_at(pos: Vector2) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_update_focus()
 	if frozen:
 		velocity = Vector2.ZERO
 		_update_body()
@@ -119,7 +165,9 @@ func _physics_process(delta: float) -> void:
 			velocity = input * MOVE_SPEED
 			if input.length() > 0.2:
 				facing = dir_index(input)
-			if Input.is_action_just_pressed("attack"):
+			if Input.is_action_just_pressed("interact") and focus:
+				interact_requested.emit(focus.id)
+			elif Input.is_action_just_pressed("attack"):
 				_start_attack(input)
 			elif Input.is_action_just_pressed("dash"):
 				_try_dash(input)
@@ -152,7 +200,7 @@ func _physics_process(delta: float) -> void:
 			_process_technique()
 		State.DEAD:
 			velocity = Vector2.ZERO
-			if state_time > 1.5:
+			if state_time > 1.5 and auto_respawn:
 				_respawn()
 
 	move_and_slide()
@@ -399,6 +447,8 @@ func take_damage(amount: float, from_dir: Vector2) -> void:
 	Fx.hitstop(0.06)
 	stats_changed.emit()
 	_set_state(State.DEAD if hp <= 0.0 else State.HURT)
+	if hp <= 0.0:
+		died.emit()
 
 
 func _respawn() -> void:

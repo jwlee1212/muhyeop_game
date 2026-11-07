@@ -3,10 +3,12 @@ extends CharacterBody2D
 ##   thug  황가 패거리: 베기 1종, 맞으면 움찔한다
 ##   hwang 황가(우두머리): 내려찍기·발구르기·돌진, 기세가 무너지기 전엔 움찔하지 않는다(armored),
 ##         부하가 모두 쓰러지면 분노해 빨라진다
+##   dummy 목인장(무관 수련용): 움직이지 않고 쓰러지지 않는다
 ## 공통: 배회 → 추격(격자 길찾기) → 예비동작(바닥 예고) → 공격 → 빈틈.
 ## 기세: 공격을 받으면 깎이고 0이 되면 "기세 붕괴"(경직, 받는 피해 1.5배). 한동안 안 맞으면 회복.
 
 signal died(enemy)
+signal hit_taken(enemy, amount: float, poise_dmg: float)
 
 const Body := preload("res://scripts/dummy_body.gd")
 const Player := preload("res://scripts/player.gd")
@@ -24,6 +26,14 @@ const KINDS := {
 		"palette": {"robe": Color("8a5a3a"), "robe_dark": Color("5a3a26"), "trim": Color("b02a2a"),
 			"skin": Color("d8a878"), "hair": Color("2a1e18"), "weapon": Color("8a6a44"),
 			"hilt": Color("3a2a1a"), "shoe": Color("1e1814")},
+	},
+	"dummy": {
+		"name": "목인장", "hp": 9999.0, "poise": 30.0, "armored": false, "boss": false, "immortal": true,
+		"speed": 0.0, "detect": 0.0, "attack_range": 0.0, "broken_time": 1.0, "cooldown": 1.0,
+		"attacks": [], "weapon_len": 0,
+		"palette": {"robe": Color("b08a50"), "robe_dark": Color("8a6a3a"), "trim": Color("6e4a2c"),
+			"skin": Color("c8a868"), "hair": Color("8a6a3a"), "weapon": Color(0, 0, 0, 0),
+			"hilt": Color(0, 0, 0, 0), "shoe": Color("6e4a2c")},
 	},
 	"hwang": {
 		"name": "황가", "hp": 200.0, "poise": 90.0, "armored": true, "boss": true,
@@ -131,6 +141,8 @@ func _physics_process(delta: float) -> void:
 	state_time += delta
 	attack_cd = maxf(0.0, attack_cd - delta)
 	_update_poise(delta)
+	if stats.get("immortal", false):
+		knock = Vector2.ZERO        # 목인장은 밀리지 않는다
 	if stats.boss and not enraged:
 		_check_enrage(delta)
 	var p := _player()
@@ -338,6 +350,9 @@ func take_hit(amount: float, dir: Vector2, knockback: float, poise_dmg := 0.0) -
 	if broken:
 		amount *= 1.5
 	hp -= amount
+	if stats.get("immortal", false):
+		hp = max_hp
+	hit_taken.emit(self, amount, poise_dmg)
 	body.flash = 0.1
 	Fx.damage_number(global_position, int(amount), Color("ffd060") if broken else Color(1, 0.95, 0.8))
 	if hp <= 0.0:

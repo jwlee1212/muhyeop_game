@@ -27,7 +27,8 @@ func damage_number(world_pos: Vector2, value: int, color: Color = Color(1, 0.95,
 		return
 	var label := Label.new()
 	label.text = str(value)
-	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_font_override("font", Game.font_small)
+	label.add_theme_font_size_override("font_size", Game.SMALL_SIZE)
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.05))
 	label.add_theme_constant_override("outline_size", 2)
@@ -47,7 +48,8 @@ func popup_text(world_pos: Vector2, text: String, color: Color = Color(1, 1, 1))
 		return
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_font_override("font", Game.font_small)
+	label.add_theme_font_size_override("font_size", Game.SMALL_SIZE)
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.1))
 	label.add_theme_constant_override("outline_size", 3)
